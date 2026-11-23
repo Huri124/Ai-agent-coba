@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><title>Anime Studio AI</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#151d31;--muted:#9aa7bd;--line:#28344c;--accent:#8b9cff;--good:#4ade80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef2ff;font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:20px 16px 12px;max-width:900px;margin:auto}h1{font-size:24px;margin:0 0 5px}.sub{color:var(--muted);font-size:13px}
+main{max-width:900px;margin:auto;padding:10px 16px 40px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+h2{font-size:17px;margin:0 0 12px}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+label{display:block;color:#c5cee0;font-size:13px;margin:10px 0 6px}
+input,textarea,select{width:100%;background:#0c1426;color:#eef2ff;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit}
+textarea{min-height:150px;resize:vertical}button{background:var(--accent);color:#0b1020;border:0;border-radius:10px;padding:12px 16px;font-weight:700;font-size:14px;cursor:pointer}
+button.secondary{background:#26334d;color:#e5eaff}button:disabled{opacity:.5}
+.status{padding:10px 12px;background:#0c1426;border:1px solid var(--line);border-radius:10px;color:var(--muted);white-space:pre-wrap}
+.output{white-space:pre-wrap;line-height:1.65;background:#0c1426;padding:14px;border-radius:10px;min-height:80px}
+.small{font-size:12px;color:var(--muted);line-height:1.5}.pill{display:inline-block;border:1px solid var(--line);padding:5px 9px;border-radius:99px;font-size:12px;color:#c5cee0;margin:4px 4px 0 0}
+a{color:#aab8ff}.bar{height:7px;background:#26334d;border-radius:9px;overflow:hidden}.bar span{display:block;height:100%;width:0;background:var(--good)}
+</style></head>
+<body>
+<header><h1>Anime Studio AI</h1><div class="sub">Dashboard cloud — tahap 1: riset naskah dan AI Router</div></header>
+<main>
+<section class="card">
+<h2>1. Koneksi backend</h2>
+<div class="row"><div><label>Alamat API Worker</label><input id="api" placeholder="https://nama-proyek.pages.dev"></div><div style="flex:0 0 auto;align-self:end"><button class="secondary" id="check">Tes koneksi</button></div></div>
+<div id="conn" class="status" style="margin-top:10px">Belum dites. Masukkan alamat API setelah deployment.</div>
+<p class="small">Alamat API disimpan di perangkat ini. Kunci API AI tidak dimasukkan di sini; simpan aman di pengaturan Cloudflare.</p>
+</section>
+<section class="card">
+<h2>2. Buat narasi recap</h2>
+<label>Judul proyek</label><input id="project" placeholder="Contoh: Solo Leveling — Chapter 89">
+<label>Transkrip / ringkasan sumber cerita</label><textarea id="source" placeholder="Tempel transkrip atau urutan kejadian di sini. AI akan menjadikan teks ini sebagai sumber utama."></textarea>
+<div class="row">
+<div><label>Jenis output</label><select id="format"><option value="short">Shorts (20–60 detik)</option><option value="long">Video panjang</option><option value="both">Shorts + versi panjang</option></select></div>
+<div><label>Gaya bahasa</label><select id="style"><option value="casual">Indonesia santai/tongkrongan</option><option value="neutral">Indonesia natural</option></select></div>
+</div>
+<p class="small">Aturan: jangan menambah kejadian atau motif yang tidak ada di sumber; pertahankan urutan cerita; perjelas sebab-akibat; hindari bahasa kaku dan dramatis berlebihan.</p>
+<button id="generate">Buat narasi</button>
+<div class="status" id="job" style="margin-top:12px">Siap. Permintaan berbayar otomatis dinonaktifkan.</div>
+</section>
+<section class="card">
+<h2>3. Hasil narasi</h2>
+<div class="output" id="result">Hasil akan muncul di sini.</div>
+<div class="row" style="margin-top:12px"><button class="secondary" id="copy">Salin narasi</button><button class="secondary" id="save">Unduh TXT</button></div>
+</section>
+<section class="card">
+<h2>4. Status layanan</h2>
+<div id="providers"><span class="pill">Gemini: prioritas pertama</span><span class="pill">OpenRouter: cadangan</span><span class="pill">Pembelian otomatis: mati</span><span class="pill">Saat kuota habis: antre/tunggu</span></div>
+<p class="small">Dashboard ini adalah fondasi yang bisa di-deploy, bukan layanan yang sudah aktif. Fitur gambar, suara, rendering video, dan upload YouTube akan ditambahkan setelah backend tahap 1 berhasil diuji.</p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const stored=localStorage.getItem("anime_api")||"";
+$("api").value=stored;
+$("api").addEventListener("change",()=>localStorage.setItem("anime_api",$("api").value.trim().replace(/\/$/,"")));
+function apiBase(){return $("api").value.trim().replace(/\/$/,"")}
+$("check").onclick=async()=>{try{const r=await fetch(apiBase()+"/api/health");const j=await r.json();$("conn").textContent=r.ok?`Terhubung • ${j.status} • ${j.version}`:`Gagal: ${j.error||r.status}`}catch(e){$("conn").textContent="Belum terhubung. Periksa URL deployment dan koneksi internet."}};
+$("generate").onclick=async()=>{
+ const source=$("source").value.trim(); if(!source){$("job").textContent="Tempel transkrip/ringkasan cerita terlebih dahulu.";return}
+ if(!apiBase()){ $("job").textContent="Masukkan alamat API backend terlebih dahulu.";return}
+ $("generate").disabled=true;$("job").textContent="Mengirim tugas ke AI Router…";
+ try{
+  const r=await fetch(apiBase()+"/api/narrative",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project:$("project").value,source,format:$("format").value,style:$("style").value})});
+  const j=await r.json();
+  if(j.status==="queued"){$("job").textContent="Kuota layanan gratis sedang habis. Tugas masuk antrean; tidak ada pembelian otomatis. Coba lagi nanti.";return}
+  if(!r.ok)throw new Error(j.error||"Permintaan gagal");
+  $("result").textContent=j.output||"Tidak ada hasil.";
+  $("job").textContent=`Selesai • Provider: ${j.provider} • Model: ${j.model} • Status: ${j.status}`;
+ }catch(e){$("job").textContent="Gagal: "+e.message}
+ finally{$("generate").disabled=false}
+};
+$("copy").onclick=async()=>{await navigator.clipboard.writeText($("result").textContent);$("job").textContent="Narasi disalin."};
+$("save").onclick=()=>{const b=new Blob([$("result").textContent],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="narasi-recap.txt";a.click();URL.revokeObjectURL(a.href)};
+</script></body></html>
