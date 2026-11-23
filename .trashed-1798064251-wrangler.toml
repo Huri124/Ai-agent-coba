@@ -1,8 +1,0 @@
-name = "anime-studio-ai"
-compatibility_date = "2026-11-24"
-pages_build_output_dir = "./public"
-
-[vars]
-GEMINI_MODEL = "gemini-2.5-flash"
-OPENROUTER_MODEL = "google/gemini-2.0-flash-exp:free"
-APP_URL = "https://anime-studio-ai.pages.dev"
